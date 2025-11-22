@@ -12,9 +12,43 @@ Model name is converted to lowercase for the collection name:
 """
 
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Optional, List, Literal
 
-# Example schemas (replace with your own):
+# -----------------------------------------------------------------------------
+# Domain schemas for transactional CRUD demo
+# -----------------------------------------------------------------------------
+
+class Customer(BaseModel):
+    """Customers collection schema (collection name: customer)"""
+    name: str = Field(..., description="Full name of the customer")
+    email: str = Field(..., description="Unique email address")
+    phone: Optional[str] = Field(None, description="Phone number")
+    address: Optional[str] = Field(None, description="Mailing address")
+    status: Literal["active", "inactive"] = Field("active", description="Customer status")
+
+class OrderItem(BaseModel):
+    """Embedded model used inside orders.items"""
+    id: Optional[str] = Field(None, description="Client-generated line id")
+    product_name: str = Field(..., description="Name/description of the item")
+    unit_price: float = Field(..., ge=0, description="Unit price")
+    quantity: int = Field(..., ge=1, description="Quantity ordered")
+    line_total: Optional[float] = Field(None, ge=0, description="Computed: unit_price * quantity")
+
+class Order(BaseModel):
+    """Orders collection schema (collection name: order)"""
+    customer_id: str = Field(..., description="Reference to customer _id")
+    status: Literal["draft", "pending", "paid", "shipped", "cancelled"] = Field(
+        "draft", description="Order lifecycle status"
+    )
+    items: List[OrderItem] = Field(default_factory=list, description="Line items")
+    discount_type: Literal["amount", "percent"] = Field("amount", description="Discount type")
+    discount_value: float = Field(0.0, ge=0, description="Discount amount in currency or percent value")
+    subtotal: float = Field(0.0, ge=0, description="Computed sum of line totals")
+    total: float = Field(0.0, ge=0, description="Computed subtotal minus discount (min 0)")
+
+# -----------------------------------------------------------------------------
+# Example schemas kept for reference
+# -----------------------------------------------------------------------------
 
 class User(BaseModel):
     """
@@ -37,12 +71,3 @@ class Product(BaseModel):
     price: float = Field(..., ge=0, description="Price in dollars")
     category: str = Field(..., description="Product category")
     in_stock: bool = Field(True, description="Whether product is in stock")
-
-# Add your own schemas here:
-# --------------------------------------------------
-
-# Note: The Flames database viewer will automatically:
-# 1. Read these schemas from GET /schema endpoint
-# 2. Use them for document validation when creating/editing
-# 3. Handle all database operations (CRUD) directly
-# 4. You don't need to create any database endpoints!
